@@ -51,9 +51,9 @@ static int __init setup_slab_nomerge(char *str)
 	return 1;
 }
 
-#ifdef CONFIG_SLUB
+//#ifdef CONFIG_SLUB
 __setup_param("slub_nomerge", slub_nomerge, setup_slab_nomerge, 0);
-#endif
+//#endif
 
 __setup("slab_nomerge", setup_slab_nomerge);
 
@@ -280,6 +280,7 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
 		if (s->size - size >= sizeof(void *))
 			continue;
 
+		// Neeraj check this area
 		if (IS_ENABLED(CONFIG_SLAB) && align &&
 			(align > s->align || s->align % align))
 			continue;
@@ -329,6 +330,9 @@ static struct kmem_cache *create_cache(const char *name,
 	if (!s)
 		goto out;
 
+	if (alloc_type == ALLOC_SLAB)
+	else if (alloc_type == ALLOC_SLUB)
+	
 	s->name = name;
 	s->object_size = object_size;
 	s->size = size;
@@ -1024,11 +1028,11 @@ EXPORT_SYMBOL(kmalloc_order_trace);
 
 #ifdef CONFIG_SLABINFO
 
-#ifdef CONFIG_SLAB
+//#ifdef CONFIG_SLAB
 #define SLABINFO_RIGHTS (S_IWUSR | S_IRUSR)
-#else
-#define SLABINFO_RIGHTS S_IRUSR
-#endif
+//#else
+//#define SLABINFO_RIGHTS S_IRUSR
+//#endif
 
 static void print_slabinfo_header(struct seq_file *m)
 {

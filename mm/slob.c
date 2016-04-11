@@ -522,7 +522,7 @@ size_t ksize(const void *block)
 }
 EXPORT_SYMBOL(ksize);
 
-int __kmem_cache_create(struct kmem_cache *c, unsigned long flags)
+int slob__kmem_cache_create(struct kmem_cache *c, unsigned long flags)
 {
 	if (flags & SLAB_DESTROY_BY_RCU) {
 		/* leave room for rcu footer at the end of object */

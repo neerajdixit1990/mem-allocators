@@ -16,26 +16,38 @@
  * separate allocations in the kmem_cache structure of SLAB and
  * SLUB is no longer needed.
  */
-struct kmem_cache {
-	unsigned int object_size;/* The original size of the object */
-	unsigned int size;	/* The aligned/padded/added on size  */
-	unsigned int align;	/* Alignment as calculated */
-	unsigned long flags;	/* Active flags on the slab */
-	const char *name;	/* Slab name for sysfs */
-	int refcount;		/* Use counter */
-	void (*ctor)(void *);	/* Called on object slot creation */
-	struct list_head list;	/* List of all slab caches on the system */
-};
+/*struct kmem_cache {
+	unsigned int object_size;
+	unsigned int size;	
+	unsigned int align;
+	unsigned long flags;	
+	const char *name;	
+	int refcount;		
+	void (*ctor)(void *);	
+	struct list_head list;
+};*/
 
 #endif /* CONFIG_SLOB */
+typedef enum alloc_type_ {
+	SLAB_ALLOC,
+	SLUB_ALLOC
+} alloc_type;
 
-#ifdef CONFIG_SLAB
+struct kmem_cache {
+	alloc_type	type;	
+	union {
+		struct slab_kmem_cache	slab;
+		struct slub_kmem_cache	slub;
+	};
+};
+
+//#ifdef CONFIG_SLAB
 #include <linux/slab_def.h>
-#endif
+//#endif
 
-#ifdef CONFIG_SLUB
+//#ifdef CONFIG_SLUB
 #include <linux/slub_def.h>
-#endif
+//#endif
 
 #include <linux/memcontrol.h>
 
@@ -80,6 +92,7 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 
 
 /* Functions provided by the slab allocators */
+// Neeraj start from here
 extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
 
 extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
@@ -114,6 +127,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 
 
 /* Legal flag mask for kmem_cache_create(), for various configurations */
+// Neeraj enable all flags with different names
 #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | SLAB_PANIC | \
 			 SLAB_DESTROY_BY_RCU | SLAB_DEBUG_OBJECTS )
 
@@ -326,7 +340,7 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 struct kmem_cache_node {
 	spinlock_t list_lock;
 
-#ifdef CONFIG_SLAB
+//#ifdef CONFIG_SLAB
 	struct list_head slabs_partial;	/* partial list first, better asm code */
 	struct list_head slabs_full;
 	struct list_head slabs_free;
@@ -337,9 +351,9 @@ struct kmem_cache_node {
 	struct alien_cache **alien;	/* on other nodes */
 	unsigned long next_reap;	/* updated without locking */
 	int free_touched;		/* updated without locking */
-#endif
+//#endif
 
-#ifdef CONFIG_SLUB
+//#ifdef CONFIG_SLUB
 	unsigned long nr_partial;
 	struct list_head partial;
 #ifdef CONFIG_SLUB_DEBUG
@@ -347,7 +361,7 @@ struct kmem_cache_node {
 	atomic_long_t total_objects;
 	struct list_head full;
 #endif
-#endif
+//#endif
 
 };
 
