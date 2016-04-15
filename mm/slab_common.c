@@ -62,7 +62,12 @@ __setup("slab_nomerge", setup_slab_nomerge);
  */
 unsigned int kmem_cache_size(struct kmem_cache *s)
 {
-	return s->object_size;
+	if (alloc_state == SLAB_ALLOC)
+		return s->slab->object_size;
+	else if (alloc_state == SLUB_ALLOC)
+		return s->slub->object_size;
+	else
+		panic("Un-expected allocator type %d !\n", alloc_state);
 }
 EXPORT_SYMBOL(kmem_cache_size);
 
@@ -130,9 +135,19 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
 #ifdef CONFIG_MEMCG_KMEM
 void slab_init_memcg_params(struct kmem_cache *s)
 {
-	s->memcg_params.is_root_cache = true;
-	INIT_LIST_HEAD(&s->memcg_params.list);
-	RCU_INIT_POINTER(s->memcg_params.memcg_caches, NULL);
+	if (alloc_state == SLAB_ALLOC) {
+		s->slab->memcg_params.is_root_cache = true;
+		INIT_LIST_HEAD(&(s->slab->memcg_params.list));
+		RCU_INIT_POINTER(s->slab->memcg_params.memcg_caches, NULL);
+
+	} else if (alloc_state == SLUB_ALLOC) {
+	        s->slub->memcg_params.is_root_cache = true;
+	        INIT_LIST_HEAD(&(s->slub->memcg_params.list));
+	        RCU_INIT_POINTER(s->slub->memcg_params.memcg_caches, NULL);
+
+	} else {
+		panic("Inconsistent allocator type %d !\n", alloc_state);
+	}
 }
 
 static int init_memcg_params(struct kmem_cache *s,
@@ -330,25 +345,49 @@ static struct kmem_cache *create_cache(const char *name,
 	if (!s)
 		goto out;
 
-	if (alloc_type == ALLOC_SLAB)
-	else if (alloc_type == ALLOC_SLUB)
-	
-	s->name = name;
-	s->object_size = object_size;
-	s->size = size;
-	s->align = align;
-	s->ctor = ctor;
+	if (alloc_state == ALLOC_SLAB) {
+		s->slab->type = ALLOC_SLAB;
+	        s->slab->name = name;
+	        s->slab->object_size = object_size;
+	        s->slab->size = size;
+	        s->slab->align = align;
+	        s->slab->ctor = ctor;
+		s->slab->refcount = 1;
 
+	} else if (alloc_state == ALLOC_SLUB) {
+		s->type = ALLOC_SLUB;
+                s->slub->name = name;
+                s->slub->object_size = object_size;
+                s->slub->size = size;
+                s->slub->align = align;
+                s->slub->ctor = ctor;
+		s->slub->refcount = 1;
+
+	} else {
+		panic("Incorrect allocator type %d !\n", alloc_state);
+	}
+
+	/* return 0, ignore */	
 	err = init_memcg_params(s, memcg, root_cache);
 	if (err)
 		goto out_free_cache;
 
-	err = __kmem_cache_create(s, flags);
-	if (err)
-		goto out_free_cache;
+	if (alloc_state == ALLOC_SLAB) {
+		err = slab__kmem_cache_create(s, flags);
+		if (err)
+			goto out_free_cache;
 
-	s->refcount = 1;
-	list_add(&s->list, &slab_caches);
+		list_add(&s->list, &slab_caches);
+	} else if (alloc_state == ALLOC_SLUB) {
+                err = slub__kmem_cache_create(s, flags); 
+                if (err)
+                        goto out_free_cache;
+
+                list_add(&s->list, &slab_caches);
+
+	} else {
+		panic("Incorrect allocator type %d !\n", alloc_state);
+	}
 out:
 	if (err)
 		return ERR_PTR(err);
@@ -356,7 +395,10 @@ out:
 
 out_free_cache:
 	destroy_memcg_params(s);
-	kmem_cache_free(kmem_cache, s);
+	if (alloc_state == ALLOC_SLAB)
+		slab_kmem_cache_free(kmem_cache, s->slab);
+	else if (alloc_state == ALLOC_SLUB)
+		slub_kmem_cache_free(kmem_cache, s->slub);
 	goto out;
 }
 
@@ -454,13 +496,28 @@ EXPORT_SYMBOL(kmem_cache_create);
 static int shutdown_cache(struct kmem_cache *s,
 		struct list_head *release, bool *need_rcu_barrier)
 {
-	if (__kmem_cache_shutdown(s) != 0)
-		return -EBUSY;
+	if (alloc_state == SLAB_ALLOC) {
+		if (slab__kmem_cache_shutdown(s->slab) != 0)
+			return -EBUSY;
 
-	if (s->flags & SLAB_DESTROY_BY_RCU)
-		*need_rcu_barrier = true;
+		if (s->slab->flags & SLAB_DESTROY_BY_RCU)
+			*need_rcu_barrier = true;
 
-	list_move(&s->list, release);
+		list_move(&s->slab->list, release);
+
+	} else if (alloc_state == SLUB_ALLOC) {
+                if (slub__kmem_cache_shutdown(s->slub) != 0)
+                        return -EBUSY;
+
+                if (s->slub->flags & SLAB_DESTROY_BY_RCU)
+                        *need_rcu_barrier = true;
+
+                list_move(&s->slub->list, release);
+
+	} else {
+		panic("Incorrect allocator type %d !\n", alloc_state);
+	}
+
 	return 0;
 }
 
@@ -715,17 +772,34 @@ void kmem_cache_destroy(struct kmem_cache *s)
 
 	mutex_lock(&slab_mutex);
 
-	s->refcount--;
-	if (s->refcount)
-		goto out_unlock;
+	if (alloc_state == SLAB_ALLOC) {
+		s->slab->refcount--;
+		if (s->slab->refcount)
+			goto out_unlock;
+
+	} else if (alloc_state == SLUB_ALLOC) {
+                s->slub->refcount--;
+                if (s->slub->refcount)
+                        goto out_unlock;
+
+	} else {
+		panic("Inconsistent allocator state %d !\n", alloc_state);
+	}
 
 	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
 	if (!err)
 		err = shutdown_cache(s, &release, &need_rcu_barrier);
 
 	if (err) {
-		pr_err("kmem_cache_destroy %s: "
-		       "Slab cache still has objects\n", s->name);
+		if (alloc_state == SLAB_ALLOC)
+			pr_err("kmem_cache_destroy %s: "
+		       		"Slab cache still has objects\n", s->slab->name);
+		else if (alloc_state == SLUB_ALLOC)
+                        pr_err("kmem_cache_destroy %s: "
+                                "Slab cache still has objects\n", s->slub->name);
+		else
+			panic("Inconsistent allocator state %d !\n", alloc_state);
+
 		dump_stack();
 	}
 out_unlock:
@@ -751,7 +825,12 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
 
 	get_online_cpus();
 	get_online_mems();
-	ret = __kmem_cache_shrink(cachep, false);
+	if (alloc_state == ALLOC_SLAB)
+		ret = slab__kmem_cache_shrink(cachep->slab, false);
+	else if (alloc_state == ALLOC_SLUB)
+		ret = slub__kmem_cache_shrink(cachep->slub, false);
+	else
+		panic("Inconsistent allocator %d !\n", alloc_state);
 	put_online_mems();
 	put_online_cpus();
 	return ret;
@@ -770,19 +849,34 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 {
 	int err;
 
-	s->name = name;
-	s->size = s->object_size = size;
-	s->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+	if (alloc_state == ALLOC_SLAB) {
+		s->slab->name = name;
+		s->slab->size = s->slab->object_size = size;
+		s->slab->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+		s->slab->refcount = -1;       /* Exempt from merging for now */
+
+	} else if (alloc_state == ALLOC_SLUB) {
+                s->slub->name = name;
+                s->slub->size = s->slub->object_size = size;
+                s->slub->align = calculate_alignment(flags, ARCH_KMALLOC_MINALIGN, size);
+                s->slub->refcount = -1;       /* Exempt from merging for now */
+
+	} else {
+		panic("Inconsistent allocator type %d !\n", alloc_state);
+	}
 
 	slab_init_memcg_params(s);
 
-	err = __kmem_cache_create(s, flags);
+	if (alloc_state == ALLOC_SLAB)
+		err = slab__kmem_cache_create(s->slab, flags);
+	else if (alloc_state == ALLOC_SLUB)
+		err = slub__kmem_cache_create(s->slub, flags);
+	else
+		panic("Inconsistent allocator type %d !\n", alloc_state);
 
 	if (err)
 		panic("Creation of kmalloc slab %s size=%zu failed. Reason %d\n",
 					name, size, err);
-
-	s->refcount = -1;	/* Exempt from merging for now */
 }
 
 struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
@@ -794,8 +888,17 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
 		panic("Out of memory when creating slab %s\n", name);
 
 	create_boot_cache(s, name, size, flags);
-	list_add(&s->list, &slab_caches);
-	s->refcount = 1;
+
+	if (alloc_state == ALLOC_SLAB) {
+		list_add(&(s->slab->list), &slab_caches);
+		s->slab->refcount = 1;
+	} else if (alloc_state == ALLOC_SLUB) {
+		list_add(&(s->slub->list), &slab_caches);
+		s->slub->refcount = 1;
+	} else {
+		panic("Inconsustent allocator state %d !\n", alloc_state);
+	}
+
 	return s;
 }
 

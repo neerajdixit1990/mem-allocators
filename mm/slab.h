@@ -28,17 +28,15 @@
 };*/
 
 #endif /* CONFIG_SLOB */
-typedef enum alloc_type_ {
+enum alloc_type {
 	SLAB_ALLOC,
 	SLUB_ALLOC
-} alloc_type;
+} alloc_state;
 
 struct kmem_cache {
 	alloc_type	type;	
-	union {
-		struct slab_kmem_cache	slab;
-		struct slub_kmem_cache	slub;
-	};
+	struct slab_kmem_cache	slab;
+	struct slub_kmem_cache	slub;
 };
 
 //#ifdef CONFIG_SLAB

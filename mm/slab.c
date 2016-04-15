@@ -2276,7 +2276,7 @@ slab__kmem_cache_create (struct slab_kmem_cache *cachep, unsigned long flags)
 
 	err = setup_cpu_cache(cachep, gfp);
 	if (err) {
-		__kmem_cache_shutdown(cachep);
+		slab__kmem_cache_shutdown(cachep);
 		return err;
 	}
 
@@ -2395,7 +2395,7 @@ out:
 	return nr_freed;
 }
 
-int __kmem_cache_shrink(struct slab_kmem_cache *cachep, bool deactivate)
+int slab__kmem_cache_shrink(struct slab_kmem_cache *cachep, bool deactivate)
 {
 	int ret = 0;
 	int node;
@@ -2413,11 +2413,11 @@ int __kmem_cache_shrink(struct slab_kmem_cache *cachep, bool deactivate)
 	return (ret ? 1 : 0);
 }
 
-int __kmem_cache_shutdown(struct slab_kmem_cache *cachep)
+int slab__kmem_cache_shutdown(struct slab_kmem_cache *cachep)
 {
 	int i;
 	struct kmem_cache_node *n;
-	int rc = __kmem_cache_shrink(cachep, false);
+	int rc = slab__kmem_cache_shrink(cachep, false);
 
 	if (rc)
 		return rc;

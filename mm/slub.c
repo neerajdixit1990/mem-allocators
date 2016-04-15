@@ -3479,7 +3479,7 @@ static inline int kmem_cache_close(struct slub_kmem_cache *s)
 	return 0;
 }
 
-int __kmem_cache_shutdown(struct slub_kmem_cache *s)
+int slub__kmem_cache_shutdown(struct slub_kmem_cache *s)
 {
 	return kmem_cache_close(s);
 }
@@ -3644,7 +3644,7 @@ EXPORT_SYMBOL(slub_kfree);
  * being allocated from last increasing the chance that the last objects
  * are freed in them.
  */
-int __kmem_cache_shrink(struct slub_kmem_cache *s, bool deactivate)
+int slub__kmem_cache_shrink(struct slub_kmem_cache *s, bool deactivate)
 {
 	int node;
 	int i;
@@ -3727,7 +3727,7 @@ static int slab_mem_going_offline_callback(void *arg)
 
 	mutex_lock(&slab_mutex);
 	list_for_each_entry(s, &slab_caches, list)
-		__kmem_cache_shrink(s, false);
+		slub__kmem_cache_shrink(s, false);
 	mutex_unlock(&slab_mutex);
 
 	return 0;
@@ -4983,7 +4983,7 @@ static ssize_t shrink_store(struct slub_kmem_cache *s,
 			const char *buf, size_t length)
 {
 	if (buf[0] == '1')
-		kmem_cache_shrink(s);
+		slub__kmem_cache_shrink(s);
 	else
 		return -EINVAL;
 	return length;
