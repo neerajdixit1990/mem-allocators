@@ -63,9 +63,9 @@ __setup("slab_nomerge", setup_slab_nomerge);
 unsigned int kmem_cache_size(struct kmem_cache *s)
 {
 	if (alloc_state == SLAB_ALLOC)
-		return s->slab->object_size;
+		return s->slab.object_size;
 	else if (alloc_state == SLUB_ALLOC)
-		return s->slub->object_size;
+		return s->slub.object_size;
 	else
 		panic("Un-expected allocator type %d !\n", alloc_state);
 }
@@ -242,20 +242,41 @@ static inline void destroy_memcg_params(struct kmem_cache *s)
  */
 int slab_unmergeable(struct kmem_cache *s)
 {
-	if (slab_nomerge || (s->flags & SLAB_NEVER_MERGE))
-		return 1;
+	if(alloc_state == SLAB_ALLOC) {
+		if (slab_nomerge || (s->slab.flags & SLAB_NEVER_MERGE))
+			return 1;
+	
+		if (!is_root_cache(s))
+			return 1;
 
-	if (!is_root_cache(s))
-		return 1;
+		if (s->slab.ctor)
+			return 1;
 
-	if (s->ctor)
-		return 1;
+		/*
+	 	* We may have set a slab to be unmergeable during bootstrap.
+	 	*/
+		if (s->slab.refcount < 0)
+			return 1;
+	
+	} else if (alloc_state == SLUB_ALLOC) {
+                if (slab_nomerge || (s->slub.flags & SLAB_NEVER_MERGE))
+                        return 1;
+  
+                if (!is_root_cache(s))
+                        return 1;
 
-	/*
-	 * We may have set a slab to be unmergeable during bootstrap.
-	 */
-	if (s->refcount < 0)
-		return 1;
+                if (s->slub.ctor)
+                        return 1;
+                
+                /*      
+                * We may have set a slab to be unmergeable during bootstrap.
+                */ 
+                if (s->slub.refcount < 0)
+                        return 1;
+
+	} else {
+		panic("Inconsistent allocator type %d", alloc_state);
+	}
 
 	return 0;
 }
@@ -896,7 +917,7 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
 		list_add(&(s->slub->list), &slab_caches);
 		s->slub->refcount = 1;
 	} else {
-		panic("Inconsustent allocator state %d !\n", alloc_state);
+		panic("Inconsistent allocator state %d !\n", alloc_state);
 	}
 
 	return s;

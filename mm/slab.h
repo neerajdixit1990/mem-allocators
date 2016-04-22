@@ -28,16 +28,6 @@
 };*/
 
 #endif /* CONFIG_SLOB */
-enum alloc_type {
-	SLAB_ALLOC,
-	SLUB_ALLOC
-} alloc_state;
-
-struct kmem_cache {
-	alloc_type	type;	
-	struct slab_kmem_cache	slab;
-	struct slub_kmem_cache	slub;
-};
 
 //#ifdef CONFIG_SLAB
 #include <linux/slab_def.h>
@@ -48,6 +38,21 @@ struct kmem_cache {
 //#endif
 
 #include <linux/memcontrol.h>
+
+enum alloc_type {
+        SLAB_ALLOC,
+        SLUB_ALLOC
+};
+
+// this variable has the global allocator state
+enum alloc_type		alloc_state;
+
+struct kmem_cache {
+	// each slab will keep the state which tells us the format of meta data
+        enum alloc_type		cache_allocator_state;
+        struct slab_kmem_cache  slab;
+        struct slub_kmem_cache  slub;
+};
 
 /*
  * State of the slab allocator.
@@ -280,7 +285,10 @@ static inline bool slab_equal_or_root(struct kmem_cache *s,
 
 static inline const char *cache_name(struct kmem_cache *s)
 {
-	return s->name;
+	if(alloc_state == SLAB_ALLOC)
+		return s->slab.name;
+	else if (alloc_state == SLUB_ALLOC)
+		return s->slub.name;
 }
 
 static inline struct kmem_cache *
@@ -317,16 +325,32 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
 	 * to not do even the assignment. In that case, slab_equal_or_root
 	 * will also be a constant.
 	 */
-	if (!memcg_kmem_enabled() && !unlikely(s->flags & SLAB_DEBUG_FREE))
-		return s;
+	if (alloc_state == SLAB_ALLOC) {
+		if (!memcg_kmem_enabled() && !unlikely(s->slab.flags & SLAB_DEBUG_FREE))
+			return s;
+	} else if (alloc_state == SLUB_ALLOC) {
+                if (!memcg_kmem_enabled() && !unlikely(s->slub.flags & SLAB_DEBUG_FREE))
+                        return s;
+	} else {
+		panic("Inconsistent allocator state = %d", alloc_state);
+	}
+
 
 	page = virt_to_head_page(x);
 	cachep = page->slab_cache;
 	if (slab_equal_or_root(cachep, s))
 		return cachep;
 
-	pr_err("%s: Wrong slab cache. %s but object is from %s\n",
-	       __func__, s->name, cachep->name);
+	if (alloc_state == SLAB_ALLOC) {
+		pr_err("%s: Wrong slab cache. %s but object is from %s\n",
+	       		__func__, s->slab.name, cachep->slab.name);
+	} else if (alloc_state == SLUB_ALLOC) {
+                pr_err("%s: Wrong slab cache. %s but object is from %s\n",
+                        __func__, s->slub.name, cachep->slub.name);
+	} else {
+		panic("Inconsistent allocator type %d", alloc_state);
+	}
+
 	WARN_ON_ONCE(1);
 	return s;
 }
@@ -365,7 +389,12 @@ struct kmem_cache_node {
 
 static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 {
-	return s->node[node];
+	if(alloc_state == SLAB_ALLOC)
+		return s->slab.node[node];
+	else if(alloc_state == SLUB_ALLOC)
+		return s->slub.node[node];
+	else
+		panic("Inconsistent allocator state = %d", alloc_state);
 }
 
 /*
