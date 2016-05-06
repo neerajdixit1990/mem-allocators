@@ -5375,7 +5375,7 @@ static int sysfs_slab_add(struct slub_kmem_cache *s)
 {
 	int err;
 	const char *name;
-	int unmergeable = slab_unmergeable(s);
+	int unmergeable = slub_slab_unmergeable(s);
 
 	if (unmergeable) {
 		/*
@@ -5554,5 +5554,24 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos)
 {
 	return -EIO;
+}
+
+/* new api's added in slab.c */
+int slub_slab_unmergeable(struct slub_kmem_cache *s) {
+        if (slab_nomerge || (s->flags & SLAB_NEVER_MERGE))
+                return 1;
+
+        if (!slub_is_root_cache(s))
+                return 1;
+                     
+        if (s->ctor)
+                return 1;
+
+        /*
+         * We may have set a slab to be unmergeable during bootstrap.
+         */
+        if (s->refcount < 0)
+                return 1;
+        return 0;
 }
 #endif /* CONFIG_SLABINFO */

@@ -97,13 +97,20 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 /* Functions provided by the slab allocators */
 // Neeraj start from here
 extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
+extern int slab__kmem_cache_create(struct slab_kmem_cache *, unsigned long flags);
+extern int slub__kmem_cache_create(struct slub_kmem_cache *, unsigned long flags);
+
+extern void slub_kmem_cache_free(struct slub_kmem_cache *s, void *x);
+extern void slab_kmem_cache_free(struct slab_kmem_cache *cachep, void *objp);
 
 extern struct kmem_cache *create_kmalloc_cache(const char *name, size_t size,
 			unsigned long flags);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
 			size_t size, unsigned long flags);
 
-int slab_unmergeable(struct kmem_cache *s);
+//int slab_unmergeable(struct kmem_cache *s);
+int slab_slab_unmergeable(struct slab_kmem_cache *s);
+
 struct kmem_cache *find_mergeable(size_t size, size_t align,
 		unsigned long flags, const char *name, void (*ctor)(void *));
 #ifndef CONFIG_SLOB
@@ -156,7 +163,11 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
 
 int __kmem_cache_shutdown(struct kmem_cache *);
+int slab__kmem_cache_shutdown(struct slab_kmem_cache *);
+int slub__kmem_cache_shutdown(struct slub_kmem_cache *);
 int __kmem_cache_shrink(struct kmem_cache *, bool);
+int slab__kmem_cache_shrink(struct slab_kmem_cache *, bool);
+int slub__kmem_cache_shrink(struct slub_kmem_cache *, bool);
 void slab_kmem_cache_release(struct kmem_cache *);
 
 struct seq_file;
@@ -199,6 +210,19 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 			    memcg_params.list)
 
 static inline bool is_root_cache(struct kmem_cache *s)
+{
+	if (alloc_state == SLAB_ALLOC)
+		return s->slab->memcg_params.is_root_cache;
+	else if (alloc_state == SLUB_ALLOC)
+		return s->slub->memcg_params.is_root_cache;
+}
+
+static inline bool slab_is_root_cache(struct slab_kmem_cache *s)
+{
+	return s->memcg_params.is_root_cache;
+}
+
+static inline bool slub_is_root_cache(struct slub_kmem_cache *s)
 {
 	return s->memcg_params.is_root_cache;
 }
@@ -289,6 +313,8 @@ static inline const char *cache_name(struct kmem_cache *s)
 		return s->slab.name;
 	else if (alloc_state == SLUB_ALLOC)
 		return s->slub.name;
+	else
+		return NULL;
 }
 
 static inline struct kmem_cache *

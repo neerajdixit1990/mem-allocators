@@ -324,7 +324,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 #define	STATS_DEC_ACTIVE(x)	do { } while (0)
 #define	STATS_INC_ALLOCED(x)	do { } while (0)
 #define	STATS_INC_GROWN(x)	do { } while (0)
-#define	STATS_ADD_REAPED(x,y)	do { (void)(y); } while (0)
+define	STATS_ADD_REAPED(x,y)	do { (void)(y); } while (0)
 #define	STATS_SET_HIGH(x)	do { } while (0)
 #define	STATS_INC_ERR(x)	do { } while (0)
 #define	STATS_INC_NODEALLOCS(x)	do { } while (0)
@@ -4250,3 +4250,22 @@ size_t slab_ksize(const void *objp)
 	return virt_to_cache(objp)->object_size;
 }
 EXPORT_SYMBOL(slab_ksize);
+
+/* new api's added in slab.c */
+int slab_slab_unmergeable(struct slab_kmem_cache *s) {
+	if (slab_nomerge || (s->flags & SLAB_NEVER_MERGE))
+		return 1;
+
+	if (!slab_is_root_cache(s))
+		return 1;
+                
+	if (s->ctor)
+		return 1;
+
+	/*
+	 * We may have set a slab to be unmergeable during bootstrap.
+	 */
+	if (s->refcount < 0) 
+		return 1;
+	return 0;
+}
