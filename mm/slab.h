@@ -110,6 +110,7 @@ extern void create_boot_cache(struct kmem_cache *, const char *name,
 
 //int slab_unmergeable(struct kmem_cache *s);
 int slab_slab_unmergeable(struct slab_kmem_cache *s);
+int slub_slab_unmergeable(struct slub_kmem_cache *s);
 
 struct kmem_cache *find_mergeable(size_t size, size_t align,
 		unsigned long flags, const char *name, void (*ctor)(void *));

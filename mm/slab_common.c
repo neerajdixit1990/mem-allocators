@@ -323,8 +323,9 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
 			if (IS_ENABLED(CONFIG_SLAB) && align &&
 				(align > s1->align || s1->align % align))
 				continue;
-
-			return s1;
+			
+			// Neeraj, is it possible to get parent pointer from this one ?
+			return (struct kmem_cache *)s1;
 		}
 	} else if (alloc_state == SLUB_ALLOC) {
 
@@ -351,8 +352,8 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
                 	if (IS_ENABLED(CONFIG_SLAB) && align &&
                         	(align > s2->align || s2->align % align))
                         	continue;
-
-                	return s2;
+			// Neeraj, is it possible to get parent pointer from this one ?
+                	return (struct kmem_cache *)s2;
         	}
 	} else {
 		panic("Inconsistent allocator type %d", alloc_state);
@@ -805,7 +806,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 			 * The cgroup is about to be freed and therefore has no charges
 			 * left. Hence, all its caches must be empty by now.
 			 */
-			BUG_ON(__shutdown_memcg_cache(slab1, &release, &need_rcu_barrier));
+			BUG_ON(slab__shutdown_memcg_cache(slab1, &release, &need_rcu_barrier));
 		}
 	} else if(alloc_state == SLUB_ALLOC) {
                 list_for_each_entry_safe(slub1, slub2, &slab_caches, list) {
@@ -815,7 +816,7 @@ void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
                          * The cgroup is about to be freed and therefore has no charges
                          * left. Hence, all its caches must be empty by now.
                          */
-                        BUG_ON(__shutdown_memcg_cache(slub1, &release, &need_rcu_barrier));
+                        BUG_ON(slub__shutdown_memcg_cache(slub1, &release, &need_rcu_barrier));
                 }
 	}
 	mutex_unlock(&slab_mutex);
@@ -920,14 +921,16 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void slab_slab_kmem_cache_release(struct slab_kmem_cache *s)
 {
-        destroy_memcg_params(s);
+	// Neeraj check code again
+        //destroy_memcg_params(s);
         kfree_const(s->name);
         kmem_cache_free(kmem_cache, s);
 }
 
 void slub_slab_kmem_cache_release(struct slub_kmem_cache *s)
 {
-        destroy_memcg_params(s);
+	// Neeraj check code again
+        //destroy_memcg_params(s);
         kfree_const(s->name);
         kmem_cache_free(kmem_cache, s);
 }
@@ -1351,7 +1354,7 @@ void slab_stop(struct seq_file *m, void *p)
 	mutex_unlock(&slab_mutex);
 }
 
-static void
+/*static void
 memcg_accumulate_slabinfo(struct kmem_cache *s, struct slabinfo *info)
 {
 	struct kmem_cache *c;
@@ -1374,53 +1377,56 @@ memcg_accumulate_slabinfo(struct kmem_cache *s, struct slabinfo *info)
 
 static void cache_show(struct kmem_cache *s, struct seq_file *m)
 {
-	struct slabinfo sinfo;
+        struct slabinfo sinfo;
 
-	memset(&sinfo, 0, sizeof(sinfo));
-	get_slabinfo(s, &sinfo);
+        memset(&sinfo, 0, sizeof(sinfo));
+        get_slabinfo(s, &sinfo);
 
-	memcg_accumulate_slabinfo(s, &sinfo);
+        memcg_accumulate_slabinfo(s, &sinfo);
 
-	if (alloc_state == SLAB_ALLOC)
-		seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
-			   cache_name(s), sinfo.active_objs, sinfo.num_objs, s->slab.size,
-			   sinfo.objects_per_slab, (1 << sinfo.cache_order));
-	else if (alloc_state == SLUB_ALLOC)
+        if (alloc_state == SLAB_ALLOC)
+                seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
+                           cache_name(s), sinfo.active_objs, sinfo.num_objs, s->slab.size,
+                           sinfo.objects_per_slab, (1 << sinfo.cache_order));
+        else if (alloc_state == SLUB_ALLOC)
                 seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
                            cache_name(s), sinfo.active_objs, sinfo.num_objs, s->slub.size,
                            sinfo.objects_per_slab, (1 << sinfo.cache_order));
-	else
-		panic("Inconsistent allocator type %d", alloc_state);
+        else
+                panic("Inconsistent allocator type %d", alloc_state);
 
-	seq_printf(m, " : tunables %4u %4u %4u",
-		   sinfo.limit, sinfo.batchcount, sinfo.shared);
-	seq_printf(m, " : slabdata %6lu %6lu %6lu",
-		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
-	slabinfo_show_stats(m, s);
-	seq_putc(m, '\n');
-}
+        seq_printf(m, " : tunables %4u %4u %4u",
+                   sinfo.limit, sinfo.batchcount, sinfo.shared);
+        seq_printf(m, " : slabdata %6lu %6lu %6lu",
+                   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
+        slabinfo_show_stats(m, s);
+        seq_putc(m, '\n');
+}*/
 
 static int slab_show(struct seq_file *m, void *p)
 {
-	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
+	// Neeraj, Its a print function, low priority
+	/*struct kmem_cache *slab = list_entry(p, struct kmem_cache, list);
 
 	if (p == slab_caches.next)
 		print_slabinfo_header(m);
-	if (is_root_cache(s))
-		cache_show(s, m);
+	
+	if (slab_is_root_cache(slab))
+		slab_cache_show(slab, m);*/
 	return 0;
 }
 
 #ifdef CONFIG_MEMCG_KMEM
 int memcg_slab_show(struct seq_file *m, void *p)
 {
-	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
+	// Neeraj, Its a print function, low priority
+	/*struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 
 	if (p == slab_caches.next)
 		print_slabinfo_header(m);
 	if (!is_root_cache(s) && s->memcg_params.memcg == memcg)
-		cache_show(s, m);
+		cache_show(s, m);*/
 	return 0;
 }
 #endif
