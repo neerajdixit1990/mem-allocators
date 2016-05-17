@@ -1027,6 +1027,7 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 {
 	int err;
 
+	// Neeraj, Create boot cache for both the slabs
 	if (alloc_state == SLAB_ALLOC) {
 		s->slab.name = name;
 		s->slab.size = s->slab.object_size = size;
@@ -1045,12 +1046,13 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name, size_t siz
 
 	slab_init_memcg_params(s);
 
-	if (alloc_state == SLAB_ALLOC)
+	if (alloc_state == SLAB_ALLOC) {
 		err = slab__kmem_cache_create(&(s->slab), flags);
-	else if (alloc_state == SLUB_ALLOC)
+	} else if (alloc_state == SLUB_ALLOC) {
 		err = slub__kmem_cache_create(&(s->slub), flags);
-	else
+	} else {
 		panic("Inconsistent allocator type %d !\n", alloc_state);
+	}
 
 	if (err)
 		panic("Creation of kmalloc slab %s size=%zu failed. Reason %d\n",

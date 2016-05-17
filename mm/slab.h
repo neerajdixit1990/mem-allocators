@@ -95,7 +95,6 @@ struct kmem_cache *kmalloc_slab(size_t, gfp_t);
 
 
 /* Functions provided by the slab allocators */
-// Neeraj start from here
 extern int __kmem_cache_create(struct kmem_cache *, unsigned long flags);
 extern int slab__kmem_cache_create(struct slab_kmem_cache *, unsigned long flags);
 extern int slub__kmem_cache_create(struct slub_kmem_cache *, unsigned long flags);
@@ -135,6 +134,14 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 	return flags;
 }
 #endif
+
+int slab_memcg_charge_slab(struct page *page,
+                        gfp_t gfp, int order,
+                        struct slab_kmem_cache *s);
+
+int slub_memcg_charge_slab(struct page *page,
+			gfp_t gfp, int order,
+			struct slub_kmem_cache *s);
 
 
 /* Legal flag mask for kmem_cache_create(), for various configurations */
@@ -278,16 +285,28 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
 	return s->memcg_params.root_cache;
 }
 
-static __always_inline int memcg_charge_slab(struct page *page,
+int slab_memcg_charge_slab(struct page *page,
 					     gfp_t gfp, int order,
-					     struct kmem_cache *s)
+					     struct slab_kmem_cache *s)
 {
 	if (!memcg_kmem_enabled())
 		return 0;
-	if (is_root_cache(s))
+	if (slab_is_root_cache(s))
 		return 0;
 	return __memcg_kmem_charge_memcg(page, gfp, order,
 					 s->memcg_params.memcg);
+}
+
+int slub_memcg_charge_slab(struct page *page,
+                                             gfp_t gfp, int order,
+                                             struct slub_kmem_cache *s) 
+{
+        if (!memcg_kmem_enabled())
+                return 0;
+        if (slub_is_root_cache(s))
+                return 0;
+        return __memcg_kmem_charge_memcg(page, gfp, order,
+                                         s->memcg_params.memcg);
 }
 
 extern void slab_init_memcg_params(struct kmem_cache *);
@@ -414,7 +433,7 @@ struct kmem_cache_node {
 
 };
 
-static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+/*static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 {
 	if(alloc_state == SLAB_ALLOC)
 		return s->slab.node[node];
@@ -422,6 +441,16 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 		return s->slub.node[node];
 	else
 		panic("Inconsistent allocator state = %d", alloc_state);
+}*/
+
+static inline struct kmem_cache_node *slab_get_node(struct slab_kmem_cache *s, int node)
+{
+	return s->node[node];
+}
+
+static inline struct kmem_cache_node *slub_get_node(struct slub_kmem_cache *s, int node)
+{
+	return s->node[node];
 }
 
 /*

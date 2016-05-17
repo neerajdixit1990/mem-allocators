@@ -1384,7 +1384,7 @@ static inline struct page *alloc_slab_page(struct slub_kmem_cache *s,
 	else
 		page = __alloc_pages_node(node, flags, order);
 
-	if (page && memcg_charge_slab(page, flags, order, s)) {
+	if (page && slub_memcg_charge_slab(page, flags, order, s)) {
 		__free_pages(page, order);
 		page = NULL;
 	}
@@ -3882,7 +3882,7 @@ static struct slub_kmem_cache * __init bootstrap(struct slub_kmem_cache *static_
 
 void __init kmem_cache_init(void)
 {
-	static __initdata struct slub_kmem_cache boot_kmem_cache,
+	static __initdata struct kmem_cache boot_kmem_cache,
 		boot_kmem_cache_node;
 
 	if (debug_guardpage_minorder())
@@ -3926,6 +3926,8 @@ void __init kmem_cache_init(void)
 		cache_line_size(),
 		slub_min_order, slub_max_order, slub_min_objects,
 		nr_cpu_ids, nr_node_ids);
+
+	// Neeraj, we may need to call slab_kmem_cache_init()
 }
 
 void __init kmem_cache_init_late(void)
