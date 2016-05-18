@@ -114,8 +114,12 @@ int slub_slab_unmergeable(struct slub_kmem_cache *s);
 struct kmem_cache *find_mergeable(size_t size, size_t align,
 		unsigned long flags, const char *name, void (*ctor)(void *));
 #ifndef CONFIG_SLOB
-struct kmem_cache *
-__kmem_cache_alias(const char *name, size_t size, size_t align,
+struct slub_kmem_cache *
+slub__kmem_cache_alias(const char *name, size_t size, size_t align,
+                   unsigned long flags, void (*ctor)(void *));
+
+struct slab_kmem_cache *
+slab__kmem_cache_alias(const char *name, size_t size, size_t align,
 		   unsigned long flags, void (*ctor)(void *));
 
 unsigned long kmem_cache_flags(unsigned long object_size,
@@ -433,7 +437,7 @@ struct kmem_cache_node {
 
 };
 
-/*static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
 {
 	if(alloc_state == SLAB_ALLOC)
 		return s->slab.node[node];
@@ -441,7 +445,7 @@ struct kmem_cache_node {
 		return s->slub.node[node];
 	else
 		panic("Inconsistent allocator state = %d", alloc_state);
-}*/
+}
 
 static inline struct kmem_cache_node *slab_get_node(struct slab_kmem_cache *s, int node)
 {
@@ -460,6 +464,18 @@ static inline struct kmem_cache_node *slub_get_node(struct slub_kmem_cache *s, i
 #define for_each_kmem_cache_node(__s, __node, __n) \
 	for (__node = 0; __node < nr_node_ids; __node++) \
 		 if ((__n = get_node(__s, __node)))
+
+
+// for slab
+#define for_each_kmem_cache_node_slab(__s, __node, __n) \
+        for (__node = 0; __node < nr_node_ids; __node++) \
+                 if ((__n = slab_get_node(__s, __node)))
+
+
+// for slub
+#define for_each_kmem_cache_node_slub(__s, __node, __n) \
+        for (__node = 0; __node < nr_node_ids; __node++) \
+                 if ((__n = slub_get_node(__s, __node)))
 
 #endif
 

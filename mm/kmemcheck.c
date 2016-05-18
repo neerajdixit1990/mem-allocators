@@ -57,7 +57,7 @@ void kmemcheck_free_shadow(struct page *page, int order)
 	__free_pages(shadow, order);
 }
 
-void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
+void kmemcheck_slab_alloc(struct slab_kmem_cache *s, gfp_t gfpflags, void *object,
 			  size_t size)
 {
 	/*
@@ -90,11 +90,51 @@ void kmemcheck_slab_alloc(struct kmem_cache *s, gfp_t gfpflags, void *object,
 	}
 }
 
-void kmemcheck_slab_free(struct kmem_cache *s, void *object, size_t size)
+void kmemcheck_slub_alloc(struct slub_kmem_cache *s, gfp_t gfpflags, void *object,
+                          size_t size)
+{
+        /*
+         * Has already been memset(), which initializes the shadow for us
+         * as well.
+         */
+        if (gfpflags & __GFP_ZERO)
+                return;
+
+        /* No need to initialize the shadow of a non-tracked slab. */
+        if (s->flags & SLAB_NOTRACK)
+                return;
+
+        if (!kmemcheck_enabled || gfpflags & __GFP_NOTRACK) {
+                /*
+                 * Allow notracked objects to be allocated from
+                 * tracked caches. Note however that these objects
+                 * will still get page faults on access, they just
+                 * won't ever be flagged as uninitialized. If page
+                 * faults are not acceptable, the slab cache itself
+                 * should be marked NOTRACK.
+                 */
+                kmemcheck_mark_initialized(object, size);
+        } else if (!s->ctor) {
+                /*
+                 * New objects should be marked uninitialized before
+                 * they're returned to the called.
+                 */
+                kmemcheck_mark_uninitialized(object, size);
+        }
+}
+
+void kmemcheck_slab_free(struct slab_kmem_cache *s, void *object, size_t size)
 {
 	/* TODO: RCU freeing is unsupported for now; hide false positives. */
 	if (!s->ctor && !(s->flags & SLAB_DESTROY_BY_RCU))
 		kmemcheck_mark_freed(object, size);
+}
+
+void kmemcheck_slub_free(struct slub_kmem_cache *s, void *object, size_t size)
+{
+        /* TODO: RCU freeing is unsupported for now; hide false positives. */
+        if (!s->ctor && !(s->flags & SLAB_DESTROY_BY_RCU))
+                kmemcheck_mark_freed(object, size);
 }
 
 void kmemcheck_pagealloc_alloc(struct page *page, unsigned int order,

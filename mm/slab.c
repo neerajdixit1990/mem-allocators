@@ -2061,7 +2061,7 @@ unsigned long kmem_cache_flags(unsigned long object_size,
 }
 
 struct slab_kmem_cache *
-__kmem_cache_alias(const char *name, size_t size, size_t align,
+slab__kmem_cache_alias(const char *name, size_t size, size_t align,
 		   unsigned long flags, void (*ctor)(void *))
 {
 	struct slab_kmem_cache *cachep;
@@ -2349,11 +2349,11 @@ static void drain_cpu_caches(struct slab_kmem_cache *cachep)
 
 	on_each_cpu(do_drain, cachep, 1);
 	check_irq_on();
-	for_each_kmem_cache_node(cachep, node, n)
+	for_each_kmem_cache_node_slab(cachep, node, n)
 		if (n->alien)
 			drain_alien_cache(cachep, n->alien);
 
-	for_each_kmem_cache_node(cachep, node, n)
+	for_each_kmem_cache_node_slab(cachep, node, n)
 		drain_array(cachep, n, n->shared, 1, node);
 }
 
@@ -2407,7 +2407,7 @@ int slab__kmem_cache_shrink(struct slab_kmem_cache *cachep, bool deactivate)
 	drain_cpu_caches(cachep);
 
 	check_irq_on();
-	for_each_kmem_cache_node(cachep, node, n) {
+	for_each_kmem_cache_node_slab(cachep, node, n) {
 		drain_freelist(cachep, n, slabs_tofree(cachep, n));
 
 		ret += !list_empty(&n->slabs_full) ||
@@ -2428,7 +2428,7 @@ int slab__kmem_cache_shutdown(struct slab_kmem_cache *cachep)
 	free_percpu(cachep->cpu_cache);
 
 	/* NUMA: free the node structures */
-	for_each_kmem_cache_node(cachep, i, n) {
+	for_each_kmem_cache_node_slab(cachep, i, n) {
 		kfree(n->shared);
 		free_alien_cache(n->alien);
 		kfree(n);
@@ -2586,7 +2586,8 @@ static void slab_put_obj(struct slab_kmem_cache *cachep, struct page *page,
 static void slab_map_pages(struct slab_kmem_cache *cache, struct page *page,
 			   void *freelist)
 {
-	page->slab_cache = cache;
+	// what can be done about pointer conversion ?
+	page->slab_cache.slab = cache;
 	page->freelist = freelist;
 }
 
@@ -2923,7 +2924,8 @@ static void *cache_alloc_debugcheck_after(struct slab_kmem_cache *cachep,
 
 static bool slab_should_failslab(struct slab_kmem_cache *cachep, gfp_t flags)
 {
-	if (unlikely(cachep == kmem_cache))
+	// Neeraj, check this code again
+	if (unlikely(cachep == &(kmem_cache->slab)))
 		return false;
 
 	return should_failslab(cachep->object_size, flags, cachep->flags);
@@ -3159,7 +3161,7 @@ slab_alloc_node(struct slab_kmem_cache *cachep, gfp_t flags, int nodeid,
 	if (slab_should_failslab(cachep, flags))
 		return NULL;
 
-	cachep = memcg_kmem_get_cache(cachep, flags);
+	//cachep = memcg_kmem_get_cache(cachep, flags);
 
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
@@ -3198,7 +3200,8 @@ slab_alloc_node(struct slab_kmem_cache *cachep, gfp_t flags, int nodeid,
 			memset(ptr, 0, cachep->object_size);
 	}
 
-	memcg_kmem_put_cache(cachep);
+	// Neeraj, blank function, don't know why ?
+	//memcg_kmem_put_cache(cachep);
 	return ptr;
 }
 
@@ -3247,7 +3250,7 @@ slab_alloc(struct slab_kmem_cache *cachep, gfp_t flags, unsigned long caller)
 	if (slab_should_failslab(cachep, flags))
 		return NULL;
 
-	cachep = memcg_kmem_get_cache(cachep, flags);
+	//cachep = memcg_kmem_get_cache(cachep, flags);
 
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
@@ -3264,7 +3267,7 @@ slab_alloc(struct slab_kmem_cache *cachep, gfp_t flags, unsigned long caller)
 			memset(objp, 0, cachep->object_size);
 	}
 
-	memcg_kmem_put_cache(cachep);
+	//memcg_kmem_put_cache(cachep);
 	return objp;
 }
 

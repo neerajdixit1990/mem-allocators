@@ -1289,7 +1289,9 @@ static inline struct slub_kmem_cache *slab_pre_alloc_hook(struct slub_kmem_cache
 	if (should_failslab(s->object_size, flags, s->flags))
 		return NULL;
 
-	return memcg_kmem_get_cache(s, flags);
+	// This API is from memcontrol, just returns s
+	//return memcg_kmem_get_cache(s, flags);
+	return s;
 }
 
 static inline void slab_post_alloc_hook(struct slub_kmem_cache *s, gfp_t flags,
@@ -3935,7 +3937,7 @@ void __init kmem_cache_init_late(void)
 }
 
 struct slub_kmem_cache *
-__kmem_cache_alias(const char *name, size_t size, size_t align,
+slub__kmem_cache_alias(const char *name, size_t size, size_t align,
 		   unsigned long flags, void (*ctor)(void *))
 {
 	struct slub_kmem_cache *s, *c;
