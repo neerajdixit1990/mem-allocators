@@ -1325,12 +1325,12 @@ EXPORT_SYMBOL(kmalloc_order_trace);
 //#define SLABINFO_RIGHTS S_IRUSR
 //#endif
 
-static void print_slabinfo_header(struct seq_file *m)
+/*static void print_slabinfo_header(struct seq_file *m)
 {
-	/*
+	*
 	 * Output format version, so at least we can change it
 	 * without _too_ many complaints.
-	 */
+	 *
 #ifdef CONFIG_DEBUG_SLAB
 	seq_puts(m, "slabinfo - version: 2.1 (statistics)\n");
 #else
@@ -1346,7 +1346,7 @@ static void print_slabinfo_header(struct seq_file *m)
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
 	seq_putc(m, '\n');
-}
+}*/
 
 void *slab_start(struct seq_file *m, loff_t *pos)
 {

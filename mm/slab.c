@@ -1357,7 +1357,7 @@ out:
 /*
  * swap the static kmem_cache_node with kmalloced memory
  */
-static void __init init_list(struct slab_kmem_cache *cachep, struct kmem_cache_node *list,
+/*static void __init init_list(struct slab_kmem_cache *cachep, struct kmem_cache_node *list,
 				int nodeid)
 {
 	struct kmem_cache_node *ptr;
@@ -1366,14 +1366,14 @@ static void __init init_list(struct slab_kmem_cache *cachep, struct kmem_cache_n
 	BUG_ON(!ptr);
 
 	memcpy(ptr, list, sizeof(struct kmem_cache_node));
-	/*
+	*
 	 * Do not assume that spinlocks can be initialized via memcpy:
-	 */
+	 *
 	spin_lock_init(&ptr->list_lock);
 
 	MAKE_ALL_LISTS(cachep, ptr, nodeid);
 	cachep->node[nodeid] = ptr;
-}
+}*/
 
 /*
  * For setting up all the kmem_cache_node for cache whose buffer_size is same as
@@ -3747,7 +3747,7 @@ static int do_tune_cpucache(struct slab_kmem_cache *cachep, int limit,
 	if (slab_state < FULL)
 		return ret;
 
-	if ((ret < 0) || !is_root_cache(cachep))
+	if ((ret < 0) || !slab_is_root_cache(cachep))
 		return ret;
 
 	lockdep_assert_held(&slab_mutex);
@@ -3767,7 +3767,7 @@ static int enable_cpucache(struct slab_kmem_cache *cachep, gfp_t gfp)
 	int shared = 0;
 	int batchcount = 0;
 
-	if (!is_root_cache(cachep)) {
+	if (!slab_is_root_cache(cachep)) {
 		struct slab_kmem_cache *root = memcg_root_cache(cachep);
 		limit = root->limit;
 		shared = root->shared;
@@ -3926,7 +3926,7 @@ out:
 }
 
 #ifdef CONFIG_SLABINFO
-void get_slabinfo(struct slab_kmem_cache *cachep, struct slabinfo *sinfo)
+void slab_get_slabinfo(struct slab_kmem_cache *cachep, struct slabinfo *sinfo)
 {
 	struct page *page;
 	unsigned long active_objs;
@@ -3940,7 +3940,7 @@ void get_slabinfo(struct slab_kmem_cache *cachep, struct slabinfo *sinfo)
 
 	active_objs = 0;
 	num_slabs = 0;
-	for_each_kmem_cache_node(cachep, node, n) {
+	for_each_kmem_cache_node_slab(cachep, node, n) {
 
 		check_irq_on();
 		spin_lock_irq(&n->list_lock);

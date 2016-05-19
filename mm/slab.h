@@ -198,8 +198,10 @@ struct slabinfo {
 	unsigned int cache_order;
 };
 
-void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
-void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
+void slab_get_slabinfo(struct slab_kmem_cache *s, struct slabinfo *sinfo);
+void slub_get_slabinfo(struct slub_kmem_cache *s, struct slabinfo *sinfo);
+void slabinfo_show_stats(struct seq_file *m, struct slab_kmem_cache *s);
+void slubinfo_show_stats(struct seq_file *m, struct slub_kmem_cache *s);
 ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos);
 
@@ -229,12 +231,12 @@ static inline bool is_root_cache(struct kmem_cache *s)
 		return s->slub->memcg_params.is_root_cache;
 }
 
-static inline bool slab_is_root_cache(struct slab_kmem_cache *s)
+bool slab_is_root_cache(struct slab_kmem_cache *s)
 {
 	return s->memcg_params.is_root_cache;
 }
 
-static inline bool slub_is_root_cache(struct slub_kmem_cache *s)
+bool slub_is_root_cache(struct slub_kmem_cache *s)
 {
 	return s->memcg_params.is_root_cache;
 }

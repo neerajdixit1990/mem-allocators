@@ -5528,7 +5528,7 @@ __initcall(slab_sysfs_init);
  * The /proc/slabinfo ABI
  */
 #ifdef CONFIG_SLABINFO
-void get_slabinfo(struct slub_kmem_cache *s, struct slabinfo *sinfo)
+void slub_get_slabinfo(struct slub_kmem_cache *s, struct slabinfo *sinfo)
 {
 	unsigned long nr_slabs = 0;
 	unsigned long nr_objs = 0;
@@ -5550,7 +5550,7 @@ void get_slabinfo(struct slub_kmem_cache *s, struct slabinfo *sinfo)
 	sinfo->cache_order = oo_order(s->oo);
 }
 
-void slabinfo_show_stats(struct seq_file *m, struct slub_kmem_cache *s)
+void slubinfo_show_stats(struct seq_file *m, struct slub_kmem_cache *s)
 {
 }
 
